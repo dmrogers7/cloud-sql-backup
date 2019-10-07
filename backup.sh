@@ -1,9 +1,14 @@
 #!/bin/bash
 
+install_dependency() {
+	#TODO make adaptable to multiple OS flavors by parsing the contents of /etc/os-release
+	apk add "$1"
+}
+
 die() { echo "$*" 1>&2 ; exit 1; }
 
 need() {
-    which "$1" &>/dev/null || die "Binary '$1' is missing but required"
+    which "$1" &>/dev/null || install_dependency "$1" || die "Binary '$1' is missing but required"
 }
 
 create_new_backup() {
@@ -77,11 +82,18 @@ delete_old_backups() {
 need "gcloud"
 
 if [[ -z "${INSTANCE_ID}" ]]; then
-	die "Environment variable INSTANCE_ID is required"
+	die "Environment variable INSTANCE_ID needed to continue"
 fi
-BACKUPS_TO_KEEP=${BACKUPS_TO_KEEP-24}
-MAX_ATTEMPTS=${MAX_ATTEMPTS-3}
-WAIT_SECONDS=${WAIT_SECONDS-300}
+
+if [[ -z "${SERVICE_ACCOUNT_JSON_CREDS_PATH}" ]]; then
+	die "Environment variable SERVICE_ACCOUNT_JSON_CREDS_PATH needed to continue"
+fi
+
+BACKUPS_TO_KEEP=${BACKUPS_TO_KEEP:-24}
+MAX_ATTEMPTS=${MAX_ATTEMPTS:-3}
+WAIT_SECONDS=${WAIT_SECONDS:-300}
+
+gcloud auth activate-service-account --key-file="${SERVICE_ACCOUNT_JSON_CREDS_PATH}"
 
 create_new_backup
 delete_old_backups
