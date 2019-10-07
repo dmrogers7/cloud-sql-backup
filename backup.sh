@@ -81,6 +81,8 @@ delete_old_backups() {
 				log_message "WARN: Delete of backup ID ${BACKUP_ID} failed"
 			fi
 		done
+	else
+		log_message "No backups to delete"
 	fi
 }
 
@@ -105,3 +107,5 @@ gcloud auth activate-service-account --key-file="${SERVICE_ACCOUNT_JSON_CREDS_PA
 
 create_new_backup
 delete_old_backups
+
+log_message "Finished"
