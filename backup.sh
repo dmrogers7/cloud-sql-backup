@@ -73,7 +73,7 @@ delete_old_backups() {
 
 	if [[ -n "${BACKUP_IDS}" ]]; then
 		log_message "Number of backups to keep: ${BACKUPS_TO_KEEP}, deleting extras ..."
-		for BACKUP_ID in `log_message "${BACKUP_IDS}"`
+		for BACKUP_ID in `echo "${BACKUP_IDS}"`
 		do
 			gcloud sql backups delete ${BACKUP_ID} --instance ${INSTANCE_ID} --quiet
 
