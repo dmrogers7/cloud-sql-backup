@@ -75,15 +75,28 @@ delete_old_backups() {
 		log_message "Number of backups to keep: ${BACKUPS_TO_KEEP}, deleting extras ..."
 		for BACKUP_ID in `echo "${BACKUP_IDS}"`
 		do
-			gcloud sql backups delete ${BACKUP_ID} --instance ${INSTANCE_ID} --quiet
+			gcloud sql backups delete ${BACKUP_ID} --async --instance ${INSTANCE_ID} --quiet
 
 			if [[ $? -ne 0 ]]; then
-				log_message "WARN: Delete of backup ID ${BACKUP_ID} failed"
+				log_message "WARN: Submit delete job failed!"
+				fail_flag="true"
+				continue
 			fi
+
+			JOB_NAME=$(gcloud sql operations list --instance ${INSTANCE_ID} --filter="operationType='DELETE_BACKUP' AND status!='DONE'" --format="value(name)")
+			gcloud sql operations wait "${JOB_NAME}" --timeout=unlimited
+
+			if [[ $? -ne 0 ]]; then
+				log_message "WARN: Delete backup job failed!"
+				continue
+			fi
+
 		done
 	else
 		log_message "No backups to delete"
 	fi
+
+	test "$fail_flag" && die "At least one backup deletion failed"
 }
 
 # --------------------------------------------------------
