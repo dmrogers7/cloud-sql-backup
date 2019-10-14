@@ -1,0 +1,208 @@
+{
+  "keepWaitingPipelines": false,
+  "lastModifiedBy": "DXR05",
+  "limitConcurrent": true,
+  "parameterConfig": [
+    {
+      "default": "np-platforms-cd-thd",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "account",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": false
+    }
+  ],
+  "stages": [
+    {
+      "account": "spin-cluster-account",
+      "alias": "runJob",
+      "application": "backups",
+      "cloudProvider": "kubernetes",
+      "credentails": "spin-cluster-account",
+      "manifest": {
+        "apiVersion": "batch/v1",
+        "kind": "Job",
+        "metadata": {
+          "name": "cloud-sql-hourly-backup",
+          "namespace": "spinnaker"
+        },
+        "spec": {
+          "backoffLimit": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "command": [
+                    "/bin/bash",
+                    "-c",
+                    "bash /workspace/backup.sh"
+                  ],
+                  "env": [
+                    {
+                      "name": "INSTANCE_ID",
+                      "value": "sandbox-pdu6-mysql"
+                    },
+                    {
+                      "name": "SERVICE_ACCOUNT_JSON_CREDS_PATH",
+                      "value": "/creds/service-account.json"
+                    }
+                  ],
+                  "image": "google/cloud-sdk:alpine",
+                  "name": "backup",
+                  "volumeMounts": [
+                    {
+                      "mountPath": "/workspace",
+                      "name": "workspace"
+                    },
+                    {
+                      "mountPath": "/creds",
+                      "name": "creds"
+                    }
+                  ]
+                }
+              ],
+              "initContainers": [
+                {
+                  "command": [
+                    "git",
+                    "clone",
+                    "--single-branch",
+                    "--branch",
+                    "$(BRANCH)",
+                    "$(REPO)",
+                    "/workspace"
+                  ],
+                  "env": [
+                    {
+                      "name": "BRANCH",
+                      "value": "master"
+                    },
+                    {
+                      "name": "REPO",
+                      "value": "https://github.com/dmrogers7/cloud-sql-backup.git"
+                    }
+                  ],
+                  "image": "alpine/git",
+                  "name": "git",
+                  "volumeMounts": [
+                    {
+                      "mountPath": "/workspace",
+                      "name": "workspace"
+                    }
+                  ]
+                },
+                {
+                  "command": [
+                    "/bin/sh",
+                    "-c",
+                    "sh /workspace/vault-get-creds.sh"
+                  ],
+                  "env": [
+                    {
+                      "name": "APPROLE_ID",
+                      "valueFrom": {
+                        "secretKeyRef": {
+                          "key": "role_id",
+                          "name": "vault-app-role"
+                        }
+                      }
+                    },
+                    {
+                      "name": "APPROLE_SECRET_ID",
+                      "valueFrom": {
+                        "secretKeyRef": {
+                          "key": "secret_role_id",
+                          "name": "vault-app-role"
+                        }
+                      }
+                    },
+                    {
+                      "name": "VAULT_ADDR",
+                      "value": "https://vault.spinnaker.homedepot.com"
+                    },
+                    {
+                      "name": "VAULT_SERVICE_ACCOUNT_PATH",
+                      "value": "spinnaker/docker-registry/gcp"
+                    },
+                    {
+                      "name": "VAULT_SERVICE_ACCOUNT",
+                      "value": "${ parameters.account }"
+                    },
+                    {
+                      "name": "VAULT_SERVICE_ACCOUNT_FIELD",
+                      "value": "spinnaker-gcs-account.json"
+                    },
+                    {
+                      "name": "SERVICE_ACCOUNT_JSON_CREDS_PATH",
+                      "value": "/creds/service-account.json"
+                    }
+                  ],
+                  "image": "vault",
+                  "name": "vault",
+                  "volumeMounts": [
+                    {
+                      "mountPath": "/workspace",
+                      "name": "workspace"
+                    },
+                    {
+                      "mountPath": "/creds",
+                      "name": "creds"
+                    }
+                  ]
+                }
+              ],
+              "restartPolicy": "Never",
+              "volumes": [
+                {
+                  "emptyDir": {},
+                  "name": "workspace"
+                },
+                {
+                  "emptyDir": {},
+                  "name": "creds"
+                }
+              ]
+            }
+          },
+          "ttlSecondsAfterFinished": 30
+        }
+      },
+      "name": "Run Job (Manifest)",
+      "notifications": [
+        {
+          "address": "secret_spinnaker",
+          "level": "stage",
+          "message": {
+            "stage.failed": {
+              "text": "The backup of the sandbox Cloud SQL instance failed"
+            }
+          },
+          "type": "slack",
+          "when": [
+            "stage.failed"
+          ]
+        }
+      ],
+      "refId": "1",
+      "requisiteStageRefIds": [],
+      "sendNotifications": true,
+      "type": "runJobManifest"
+    }
+  ],
+  "triggers": [
+    {
+      "cronExpression": "0 0 0/1 1/1 * ? *",
+      "enabled": true,
+      "id": "047b546f-fcaf-4035-a2e6-04d497335074",
+      "runAsUser": "fiat-gg_cloud_gcp_np-platforms-cd_dev",
+      "type": "cron"
+    }
+  ],
+  "updateTs": "1570539072416"
+}
