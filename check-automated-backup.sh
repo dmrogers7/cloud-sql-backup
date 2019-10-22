@@ -20,9 +20,10 @@ need() {
 }
 
 check_for_backup() {
-	THRESHOLD=`date -u -v-${HOURS_AGO}H "+%Y-%m-%dT%H"`
-	log_message "Finding automated backups for ${INSTANCE_ID} newer than ${THRESHOLD} ..."
-	BACKUPS=$(gcloud sql backups list --instance ${INSTANCE_ID} --filter="type='AUTOMATED' AND status='SUCCESSFUL' AND startTime>'${THRESHOLD}'" --format="table[box](id, type, startTime, status)")
+	SECONDS_AGO=$((HOURS_AGO * 3600))
+	THRESHOLD_TIME=$(date -u -d "@$(($(date +%s) - SECONDS_AGO))" "+%Y-%m-%dT%H")
+	log_message "Finding automated backups for ${INSTANCE_ID} newer than ${THRESHOLD_TIME} ..."
+	BACKUPS=$(gcloud sql backups list --instance ${INSTANCE_ID} --filter="type='AUTOMATED' AND status='SUCCESSFUL' AND startTime>'${THRESHOLD_TIME}'" --format="table[box](id, type, startTime, status)")
 	if [[ -z "${BACKUPS}" ]]; then
 		die "No automated backups found!"
 	else
